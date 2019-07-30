@@ -54,6 +54,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Gravity;
@@ -86,6 +87,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private ArrayAdapter<String> listAdapter;
     private Button btnConnectDisconnect,btnSend;
     private EditText edtMessage;
+    private Context appContext;
+    private String lastDeviceAddress = null;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -105,7 +108,15 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         edtMessage = (EditText) findViewById(R.id.sendText);
         service_init();
 
-     
+        // connect to last BT device
+        lastDeviceAddress = DevicePreferences.getLastDevice(getApplicationContext());
+        Log.d(TAG, "..retrieved lastDeviceAddress= " + lastDeviceAddress);
+        if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
+            mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(lastDeviceAddress);
+            //mService.connect(lastDeviceAddress);
+
+        }
+
        
         // Handle Disconnect & Connect button
         btnConnectDisconnect.setOnClickListener(new View.OnClickListener() {
@@ -347,7 +358,10 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                
                 Log.d(TAG, "... onActivityResultdevice.address==" + mDevice + "mserviceValue" + mService);
                 ((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName()+ " - connecting");
-                mService.connect(deviceAddress);
+                // store connected device
+                Log.d(TAG, "..storing lastDeviceAddress= " + deviceAddress);
+                DevicePreferences.setLastDevice(getApplicationContext(), deviceAddress);
+                mService.connect(lastDeviceAddress);
                             
 
             }
@@ -387,7 +401,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             Intent startMain = new Intent(Intent.ACTION_MAIN);
             startMain.addCategory(Intent.CATEGORY_HOME);
             startMain.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(startMain);
+            startActivity(startMain); // this only starts new task if not already running
             showMessage("nRFUART's running in background.\n             Disconnect to exit");
         }
         else {
