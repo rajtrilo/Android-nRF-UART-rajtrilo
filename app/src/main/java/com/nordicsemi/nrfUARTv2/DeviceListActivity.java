@@ -74,6 +74,8 @@ public class DeviceListActivity extends Activity {
     private static final long SCAN_PERIOD = 10000; //scanning for 10 seconds
     private Handler mHandler;
     private boolean mScanning;
+    private static final int CONNECT_LAST_DEVICE = 3;
+
 
 
 
@@ -82,6 +84,7 @@ public class DeviceListActivity extends Activity {
     	
         super.onCreate(savedInstanceState);
         Log.d(TAG, "onCreate");
+
         getWindow().setFeatureInt(Window.FEATURE_CUSTOM_TITLE, R.layout.title_bar);
         setContentView(R.layout.device_list);
         android.view.WindowManager.LayoutParams layoutParams = this.getWindow().getAttributes();
@@ -207,6 +210,12 @@ public class DeviceListActivity extends Activity {
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+
+        if(getIntent().getIntExtra("requestCode",0) == CONNECT_LAST_DEVICE) {
+            Intent result = new Intent();
+            setResult(Activity.RESULT_OK, result);
+            finish();
+        }
     }
 
     @Override

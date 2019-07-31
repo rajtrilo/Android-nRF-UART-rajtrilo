@@ -71,6 +71,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity implements RadioGroup.OnCheckedChangeListener {
     private static final int REQUEST_SELECT_DEVICE = 1;
     private static final int REQUEST_ENABLE_BT = 2;
+    private static final int CONNECT_LAST_DEVICE = 3;
     private static final int UART_PROFILE_READY = 10;
     public static final String TAG = "nRFUART";
     private static final int UART_PROFILE_CONNECTED = 20;
@@ -113,10 +114,9 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         Log.d(TAG, "..retrieved lastDeviceAddress= " + lastDeviceAddress);
         if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
             mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(lastDeviceAddress);
-            //mService.connect(lastDeviceAddress);
+            //mService.connect("E5:A3:56:53:77:D6");
 
         }
-
        
         // Handle Disconnect & Connect button
         btnConnectDisconnect.setOnClickListener(new View.OnClickListener() {
@@ -293,6 +293,11 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     @Override
     public void onStart() {
         super.onStart();
+        if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
+            Intent newIntent = new Intent(MainActivity.this, DeviceListActivity.class);
+            newIntent.putExtra("requestCode", CONNECT_LAST_DEVICE);
+            startActivityForResult(newIntent, CONNECT_LAST_DEVICE);
+        }
     }
 
     @Override
@@ -350,37 +355,43 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
 
-        case REQUEST_SELECT_DEVICE:
-        	//When the DeviceListActivity return, with the selected device address
-            if (resultCode == Activity.RESULT_OK && data != null) {
-                String deviceAddress = data.getStringExtra(BluetoothDevice.EXTRA_DEVICE);
-                mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(deviceAddress);
-               
-                Log.d(TAG, "... onActivityResultdevice.address==" + mDevice + "mserviceValue" + mService);
-                ((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName()+ " - connecting");
-                // store connected device
-                Log.d(TAG, "..storing lastDeviceAddress= " + deviceAddress);
-                DevicePreferences.setLastDevice(getApplicationContext(), deviceAddress);
-                mService.connect(lastDeviceAddress);
-                            
+            case CONNECT_LAST_DEVICE:
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    Log.d(TAG, "..connecting to lastDeviceAddress= " + lastDeviceAddress);
+                    mService.connect(lastDeviceAddress);
+                }
+                break;
+            case REQUEST_SELECT_DEVICE:
+                //When the DeviceListActivity return, with the selected device address
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    String deviceAddress = data.getStringExtra(BluetoothDevice.EXTRA_DEVICE);
+                    mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(deviceAddress);
 
-            }
-            break;
-        case REQUEST_ENABLE_BT:
-            // When the request to enable Bluetooth returns
-            if (resultCode == Activity.RESULT_OK) {
-                Toast.makeText(this, "Bluetooth has turned on ", Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "... onActivityResultdevice.address==" + mDevice + "mserviceValue" + mService);
+                    ((TextView) findViewById(R.id.deviceName)).setText(mDevice.getName()+ " - connecting");
+                    // store connected device
+                    Log.d(TAG, "..storing lastDeviceAddress= " + deviceAddress);
+                    DevicePreferences.setLastDevice(getApplicationContext(), deviceAddress);
+                    mService.connect(lastDeviceAddress);
 
-            } else {
-                // User did not enable Bluetooth or an error occurred
-                Log.d(TAG, "BT not enabled");
-                Toast.makeText(this, "Problem in BT Turning ON ", Toast.LENGTH_SHORT).show();
-                finish();
-            }
-            break;
-        default:
-            Log.e(TAG, "wrong request code");
-            break;
+
+                }
+                break;
+            case REQUEST_ENABLE_BT:
+                // When the request to enable Bluetooth returns
+                if (resultCode == Activity.RESULT_OK) {
+                    Toast.makeText(this, "Bluetooth has turned on ", Toast.LENGTH_SHORT).show();
+
+                } else {
+                    // User did not enable Bluetooth or an error occurred
+                    Log.d(TAG, "BT not enabled");
+                    Toast.makeText(this, "Problem in BT Turning ON ", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+                break;
+            default:
+                Log.e(TAG, "wrong request code");
+                break;
         }
     }
 
