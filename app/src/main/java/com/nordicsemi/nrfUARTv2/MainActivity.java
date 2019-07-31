@@ -293,11 +293,20 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     @Override
     public void onStart() {
         super.onStart();
-        if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
+        /*if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
             Intent newIntent = new Intent(MainActivity.this, DeviceListActivity.class);
             newIntent.putExtra("requestCode", CONNECT_LAST_DEVICE);
             startActivityForResult(newIntent, CONNECT_LAST_DEVICE);
-        }
+        }*/
+
+        final Handler handler = new Handler();
+        final Runnable runner = new Runnable() {
+            public void run() {
+                mService.connect(lastDeviceAddress);
+                //handler.postDelayed(this,100);
+            }
+        };
+        handler.postDelayed(runner,100);
     }
 
     @Override
