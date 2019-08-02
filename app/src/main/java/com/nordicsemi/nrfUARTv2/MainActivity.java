@@ -35,6 +35,8 @@ import com.nordicsemi.nrfUARTv2.UartService;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -80,7 +82,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
     TextView mRemoteRssiVal;
     RadioGroup mRg;
-    private int mState = UART_PROFILE_DISCONNECTED;
+    private static int mState = UART_PROFILE_DISCONNECTED;
     private UartService mService = null;
     private BluetoothDevice mDevice = null;
     private BluetoothAdapter mBtAdapter = null;
@@ -90,6 +92,40 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private EditText edtMessage;
     private Context appContext;
     private String lastDeviceAddress = null;
+    private boolean mUserDisconnect = false;
+
+    // this is used to keep track of BT connection state for tryConnectBT
+    public static boolean isBTConnected() {
+        if (mState == UART_PROFILE_CONNECTED)
+            return true;
+        return false;
+    }
+
+    public void tryConnectBT() {
+
+        if (mUserDisconnect) {
+            mUserDisconnect = false;
+            return; // this was an intentional disconnect, do nothing
+        }
+        if (lastDeviceAddress == null)
+            return; // we have nothing to connect to..
+
+        final Handler handler = new Handler();
+        final Runnable runner = new Runnable() {
+            public void run() {
+                Log.d(TAG, "checking BT connection onStart");
+
+                if(!isBTConnected())
+                    mService.connect(lastDeviceAddress);
+                if(!isBTConnected()) {
+                    Log.d(TAG, "Failed to connect, try again later..");
+                    handler.postDelayed(this, 10000);
+                }
+            }
+        };
+        handler.postDelayed(runner,100);
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -109,14 +145,13 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         edtMessage = (EditText) findViewById(R.id.sendText);
         service_init();
 
-        // connect to last BT device
+        // retrieve last connected BT device, this needs to be set up for quick autoconnect
         lastDeviceAddress = DevicePreferences.getLastDevice(getApplicationContext());
         Log.d(TAG, "..retrieved lastDeviceAddress= " + lastDeviceAddress);
-        if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
+        if(lastDeviceAddress != null && mBtAdapter.isEnabled())
             mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(lastDeviceAddress);
-            //mService.connect("E5:A3:56:53:77:D6");
 
-        }
+
        
         // Handle Disconnect & Connect button
         btnConnectDisconnect.setOnClickListener(new View.OnClickListener() {
@@ -138,6 +173,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         				//Disconnect button pressed
         				if (mDevice!=null)
         				{
+        				    mUserDisconnect = true;
         					mService.disconnect();
         					
         				}
@@ -236,6 +272,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                              listAdapter.add("["+currentDateTimeString+"] Disconnected to: "+ mDevice.getName());
                              mState = UART_PROFILE_DISCONNECTED;
                              mService.close();
+                             tryConnectBT(); // try to reconnect, if needed
                             //setUiState();
                          
                      }
@@ -293,20 +330,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     @Override
     public void onStart() {
         super.onStart();
-        /*if(lastDeviceAddress != null && mBtAdapter.isEnabled()) {
-            Intent newIntent = new Intent(MainActivity.this, DeviceListActivity.class);
-            newIntent.putExtra("requestCode", CONNECT_LAST_DEVICE);
-            startActivityForResult(newIntent, CONNECT_LAST_DEVICE);
-        }*/
+        tryConnectBT();
 
-        final Handler handler = new Handler();
-        final Runnable runner = new Runnable() {
-            public void run() {
-                mService.connect(lastDeviceAddress);
-                //handler.postDelayed(this,100);
-            }
-        };
-        handler.postDelayed(runner,100);
     }
 
     @Override
