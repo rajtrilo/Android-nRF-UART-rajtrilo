@@ -26,6 +26,9 @@ package com.nordicsemi.nrfUARTv2;
 
 
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.util.Date;
@@ -91,8 +94,8 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private Button btnConnectDisconnect,btnSend;
     private EditText edtMessage;
     private Context appContext;
-    private String lastDeviceAddress = null;
-    private boolean mUserDisconnect = false;
+    private String lastDeviceAddress = null; // stores last-connected BT device address
+    private boolean mUserDisconnect = false; // flag for user vs unexpected BT disconnect
 
     // this is used to keep track of BT connection state for tryConnectBT
     public static boolean isBTConnected() {
@@ -101,6 +104,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         return false;
     }
 
+    // bluetooth autoconnect to last device and reconnect service
     public void tryConnectBT() {
 
         if (mUserDisconnect) {
@@ -236,6 +240,16 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         }
     };
 
+
+    private void commitToFile(String loggedText) throws IOException {
+        FileOutputStream fOut = openFileOutput("savedData.txt",
+                 MODE_APPEND);
+        OutputStreamWriter osw = new OutputStreamWriter(fOut);
+        osw.write(loggedText);
+        osw.flush();
+        osw.close();
+    }
+
     private final BroadcastReceiver UARTStatusChangeReceiver = new BroadcastReceiver() {
 
         public void onReceive(Context context, Intent intent) {
@@ -258,7 +272,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                      }
             	 });
             }
-           
+
           //*********************//
             if (action.equals(UartService.ACTION_GATT_DISCONNECTED)) {
             	 runOnUiThread(new Runnable() {
@@ -284,7 +298,9 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
             if (action.equals(UartService.ACTION_GATT_SERVICES_DISCOVERED)) {
              	 mService.enableTXNotification();
             }
-          //*********************//
+
+            //export items added to listAdapter to file "savedData.txt"
+            //*********************//
             if (action.equals(UartService.ACTION_DATA_AVAILABLE)) {
               
                  final byte[] txValue = intent.getByteArrayExtra(UartService.EXTRA_DATA);
@@ -295,6 +311,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                          	String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                         	 	listAdapter.add("["+currentDateTimeString+"] RX: "+text);
                         	 	messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);
+                                commitToFile("["+currentDateTimeString+"] RX: "+text);
                         	
                          } catch (Exception e) {
                              Log.e(TAG, e.toString());
